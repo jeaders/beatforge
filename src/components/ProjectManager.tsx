@@ -24,6 +24,18 @@ const SCALE_OPTIONS = [
   "melodic_minor",
 ];
 
+const PROJECT_COLORS = [
+  "#22d3ee", "#818cf8", "#f472b6", "#34d399", "#facc15", "#fb923c", "#a855f7", "#f87171",
+];
+
+function getProjectColor(id: string) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PROJECT_COLORS[Math.abs(hash) % PROJECT_COLORS.length];
+}
+
 export default function ProjectManager({ onSelect }: ProjectManagerProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
@@ -93,23 +105,30 @@ export default function ProjectManager({ onSelect }: ProjectManagerProps) {
   return (
     <div className="panel">
       <div
-        className={`w-full max-w-3xl mx-auto transition-all duration-500 ${
+        className={`w-full max-w-5xl mx-auto transition-all duration-500 ${
           isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        <div className="text-center mb-10 sm:mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-cyan-500 to-indigo-600 rounded-2xl mb-4 shadow-lg shadow-cyan-500/30">
+        {/* Hero header */}
+        <div className="text-center mb-8 sm:mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-2xl mb-4 shadow-lg"
+            style={{
+              background: "linear-gradient(135deg, #22d3ee, #818cf8)",
+              boxShadow: "0 20px 40px rgba(34,211,238,0.25)",
+            }}
+          >
             <svg className="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-bold text-white mb-2 sm:mb-3 gradient-text">
-            BeatForge Personal
+          <h1 className="text-3xl sm:text-5xl font-bold text-white mb-2 sm:mb-3 tracking-tight">
+            BeatForge <span className="gradient-text">Personal</span>
           </h1>
           <p className="text-[#7c869a] text-sm sm:text-base">Crea beat, arrangiamenti e demo vocali nel browser</p>
         </div>
 
-        <div className="card mb-4 sm:mb-6">
+        {/* New project */}
+        <div className="glass-strong rounded-2xl p-4 sm:p-5 mb-4 sm:mb-5">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Nuovo Progetto</h2>
           <div className="flex flex-col sm:flex-row gap-2">
             <input
@@ -150,14 +169,15 @@ export default function ProjectManager({ onSelect }: ProjectManagerProps) {
             </div>
             <button
               onClick={handleCreate}
-              className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white rounded-lg hover:from-cyan-700 hover:to-indigo-700 transition-all duration-150 text-sm font-medium shadow-lg shadow-cyan-900/20 whitespace-nowrap"
+              className="px-5 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white rounded-lg hover:from-cyan-700 hover:to-indigo-700 transition-all duration-150 text-sm font-medium shadow-lg shadow-cyan-900/20 whitespace-nowrap active:scale-95"
             >
               Crea
             </button>
           </div>
         </div>
 
-        <div className="card mb-4 sm:mb-6">
+        {/* Recent projects */}
+        <div className="glass rounded-2xl p-4 sm:p-5 mb-4 sm:mb-5">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 sm:mb-4">
             <h2 className="text-base sm:text-lg font-semibold text-white">Progetti Recenti</h2>
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -168,7 +188,7 @@ export default function ProjectManager({ onSelect }: ProjectManagerProps) {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1 sm:flex-none sm:w-48 text-sm"
               />
-              <label className="px-3 py-1.5 bg-[#1c2130] text-white rounded-lg hover:bg-[#232a3b] cursor-pointer transition-all duration-150 text-xs sm:text-sm font-medium whitespace-nowrap">
+              <label className="px-3 py-1.5 bg-[#1c2130] text-white rounded-lg hover:bg-[#232a3b] cursor-pointer transition-all duration-150 text-xs sm:text-sm font-medium whitespace-nowrap active:scale-95">
                 Importa
                 <input type="file" accept=".beatforge.json" onChange={handleImport} className="hidden" />
               </label>
@@ -176,39 +196,68 @@ export default function ProjectManager({ onSelect }: ProjectManagerProps) {
           </div>
 
           {filteredProjects.length === 0 ? (
-            <div className="text-center py-8 sm:py-12">
+            <div className="text-center py-10 sm:py-14">
               <div className="text-4xl sm:text-5xl mb-3">🎵</div>
               <p className="text-[#7c869a] text-sm sm:text-base">
                 {projects.length === 0 ? "Nessun progetto. Crea il tuo primo progetto!" : "Nessun progetto trovato"}
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredProjects.map((project, index) => (
-                <div
-                  key={project.id}
-                  onClick={() => onSelect(project)}
-                  className="flex items-center justify-between p-3 sm:p-4 bg-[#161a21] rounded-lg hover:bg-[#1c2130] cursor-pointer transition-all duration-150 hover:scale-[1.01] border border-transparent hover:border-[#2a3347]"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white text-sm sm:text-base truncate">{project.name}</h3>
-                    <div className="text-xs text-[#7c869a] mt-1">
-                      <span>BPM: {project.bpm}</span>
-                      <span className="mx-1.5 sm:mx-2">•</span>
-                      <span>{project.tracks.length} tracce</span>
-                      <span className="mx-1.5 sm:mx-2">•</span>
-                      <span className="truncate">{new Date(project.updatedAt).toLocaleDateString()}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {filteredProjects.map((project, index) => {
+                const color = getProjectColor(project.id);
+                const updated = new Date(project.updatedAt);
+                const dateStr = updated.toLocaleDateString("it-IT", { day: "numeric", month: "short" });
+                const timeStr = updated.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+
+                return (
+                  <div
+                    key={project.id}
+                    onClick={() => onSelect(project)}
+                    className="group relative glass rounded-xl p-4 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="w-1 self-stretch min-h-[40px] rounded-full flex-shrink-0"
+                          style={{ backgroundColor: color, boxShadow: `0 0 14px ${color}40` }}
+                        />
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-white text-sm truncate">{project.name}</h3>
+                          <p className="text-[11px] text-[#7c869a] mt-1">
+                            {project.bpm} BPM • {project.tracks.length} tracce
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => handleDelete(project.id, e)}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity px-2 py-1 text-red-400 hover:text-red-300 text-xs"
+                        title="Elimina"
+                      >
+                        Elimina
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between text-[11px] text-[#7c869a]">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border"
+                          style={{
+                            borderColor: `${color}40`,
+                            color,
+                            background: `${color}15`,
+                          }}
+                        >
+                          {project.key} {project.scale.replace(/_/g, " ")}
+                        </span>
+                        <span>{project.durationBars} barre</span>
+                      </div>
+                      <span>{dateStr} {timeStr}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={(e) => handleDelete(project.id, e)}
-                    className="px-2 sm:px-3 py-1 text-red-400 hover:text-red-300 transition-colors text-xs sm:text-sm flex-shrink-0 ml-2"
-                  >
-                    Elimina
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
