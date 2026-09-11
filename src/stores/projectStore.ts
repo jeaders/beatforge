@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import type { Project, Track, Clip, Pattern, Effect, MasterChannel } from "../types";
 
-interface ProjectStore {
+export interface ProjectStore {
   projects: Project[];
   currentProject: Project | null;
   isPlaying: boolean;

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@magenta/music": "^1.23.1",
     "@tonejs/midi": "^2.0.28",
     "dexie": "^4.4.4",
     "file-saver": "^2.0.5",
