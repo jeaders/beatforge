@@ -9,7 +9,6 @@ import ChannelRack from "./components/channel-rack/ChannelRack";
 import PianoRoll from "./components/piano-roll/PianoRoll";
 import Mixer from "./components/mixer/Mixer";
 import DrumMachine from "./components/drum-machine/DrumMachine";
-import AIAssistant from "./components/AIAssistant";
 import type { View } from "./types";
 import "./App.css";
 
@@ -143,7 +142,11 @@ function App() {
   };
 
   if (showProjectManager || !currentProject) {
-    return <ProjectManager onSelect={handleSelectProject} />;
+    return (
+      <div className="min-h-screen bg-[#0f1115] text-[#f3f5f9]">
+        <ProjectManager onSelect={handleSelectProject} />
+      </div>
+    );
   }
 
   return (
@@ -168,7 +171,6 @@ function App() {
         {view === "piano-roll" && <PianoRoll currentBeat={currentBeat} isPlaying={isPlaying} />}
         {view === "mixer" && <Mixer />}
         {view === "drum-machine" && <DrumMachine />}
-        <AIAssistant />
       </div>
       {initError && (
         <div className="px-4 py-2 bg-red-900/80 border-t border-red-700 text-red-200 text-xs flex items-center justify-between">
