@@ -1,4 +1,4 @@
-export type View = "channel-rack" | "piano-roll" | "mixer" | "drum-machine";
+export type View = "channel-rack" | "piano-roll" | "mixer" | "drum-machine" | "browser" | "arrangement" | "automation";
 
 export interface Project {
   id: string;

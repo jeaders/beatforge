@@ -54,6 +54,9 @@ export default function Toolbar({
     { id: "piano-roll", label: "Note" },
     { id: "mixer", label: "Mixer" },
     { id: "drum-machine", label: "Drums" },
+    { id: "browser", label: "Browser" },
+    { id: "arrangement", label: "Arrangement" },
+    { id: "automation", label: "Automation" },
   ];
 
   const handleBpmChange = (delta: number) => {

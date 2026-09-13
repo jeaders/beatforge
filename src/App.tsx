@@ -9,7 +9,10 @@ import ChannelRack from "./components/channel-rack/ChannelRack";
 import PianoRoll from "./components/piano-roll/PianoRoll";
 import Mixer from "./components/mixer/Mixer";
 import DrumMachine from "./components/drum-machine/DrumMachine";
-import type { View } from "./types";
+import Browser from "./components/Browser";
+import Arrangement from "./components/Arrangement";
+import Automation from "./components/Automation";
+import type { Track, View } from "./types";
 import "./App.css";
 
 function App() {
@@ -171,6 +174,11 @@ function App() {
         {view === "piano-roll" && <PianoRoll currentBeat={currentBeat} isPlaying={isPlaying} />}
         {view === "mixer" && <Mixer />}
         {view === "drum-machine" && <DrumMachine />}
+        {view === "browser" && <Browser onAddTrack={({ name, type, color }) => {
+          useProjectStore.getState().addTrack({ name, type: type as Track["type"], color, muted: false, solo: false, volume: 0.8, pan: 0, effects: [], clips: [] });
+        }} />}
+        {view === "arrangement" && <Arrangement />}
+        {view === "automation" && <Automation />}
       </div>
       {initError && (
         <div className="px-4 py-2 bg-red-900/80 border-t border-red-700 text-red-200 text-xs flex items-center justify-between">

@@ -5,15 +5,20 @@ BeatForge è un beatmaker browser-based ispirato a FL Studio: crea beat, arrangi
 ## Caratteristiche
 
 - Multi-traccia con drum machine, synth, campionatori e tracce vocali
-- Channel Rack con step sequencer a 16 step e controllo di velocity
+- Channel Rack con step sequencer a 16 step, velocity, mute/solo e swing
 - Piano Roll con griglia, snap, aggiunta/rimozione note e drag&drop
-- Mixer con canali, pan, mute/solo, effetti insert e meter
-- Drum Machine pads + step sequencer integrato
+- Mixer con canali, pan, mute/solo, effetti insert e meter animati
+- Drum Machine pads + step sequencer con pattern multipli
+- Browser strumenti per aggiungere velocemente drum, synth e vocal
+- Arrangement view con timeline clips
+- Automation base con punti editing
+- Metronomo integrato
 - Registrazione audio da microfono con inserimento diretto in traccia
 - Loop, BPM, tonalità e scala configurabili
-- Esportazione WAV
+- Export WAV multi-traccia renderizzato in parallelo
 - PWA installabile con Service Worker e caching offline
 - Salvataggio progetti in IndexedDB via Dexie
+- Tema scuro professionale in stile FL Studio con interfaccia responsive
 
 ## Stack
 
@@ -29,7 +34,7 @@ BeatForge è un beatmaker browser-based ispirato a FL Studio: crea beat, arrangi
 ```
 src/
   audio/            # AudioEngine, transport, exporter, recorder, instruments, effects
-  components/       # ProjectManager, Toolbar, ChannelRack, PianoRoll, Mixer, DrumMachine
+  components/       # ProjectManager, Toolbar, ChannelRack, PianoRoll, Mixer, DrumMachine, Browser, Arrangement, Automation
   db/               # Schema Dexie
   stores/           # Zustand store
   types/            # Tipi TypeScript

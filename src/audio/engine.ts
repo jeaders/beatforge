@@ -1,11 +1,6 @@
 import * as Tone from "tone";
 import type { Project, Track, Effect } from "../types";
-
-type ScheduledEvent = {
-  id: string;
-  callback: (time: number) => void;
-  eventId?: number;
-};
+import { db } from "../db";
 
 export class AudioEngine {
   private static instance: AudioEngine | null = null;
@@ -14,7 +9,6 @@ export class AudioEngine {
   private trackPlayers: Map<string, Tone.Player[]> = new Map();
   private trackChannels: Map<string, Tone.Channel> = new Map();
   private effectInstances: Map<string, Tone.ToneAudioNode & { dispose: () => void }> = new Map();
-  private scheduledEvents: ScheduledEvent[] = [];
   private _currentProject: Project | null = null;
   private playheadCallback?: (beat: number) => void;
   private isInitialized = false;
@@ -29,11 +23,6 @@ export class AudioEngine {
     this.limiter = new Tone.Limiter(-1);
 
     this.masterGain.chain(this.compressor, this.limiter, Tone.Destination);
-
-    Tone.getTransport().bpm.value = 120;
-    Tone.getTransport().loop = true;
-    Tone.getTransport().loopStart = 0;
-    Tone.getTransport().loopEnd = "4m";
   }
 
   static getInstance(): AudioEngine {
@@ -47,6 +36,10 @@ export class AudioEngine {
     if (this.isInitialized) return;
     await Tone.start();
     this.isInitialized = true;
+    Tone.getTransport().bpm.value = 120;
+    Tone.getTransport().loop = true;
+    Tone.getTransport().loopStart = 0;
+    Tone.getTransport().loopEnd = "4m";
   }
 
   isReady(): boolean {
@@ -64,14 +57,12 @@ export class AudioEngine {
   play(project: Project): void {
     this.stop();
     this._currentProject = project;
-    this.rebuildTracks(project);
     this.scheduleProject(project);
     Tone.getTransport().start();
   }
 
   stop(): void {
-    Tone.getTransport().stop();
-    this.clearSchedule();
+    Tone.getTransport().cancel();
     this._currentProject = null;
   }
 
@@ -144,13 +135,21 @@ export class AudioEngine {
       if (!effect.enabled) continue;
       const instance = this.createEffect(effect);
       if (instance) {
-        current.connect(instance);
+        try {
+          current.connect(instance);
+        } catch {
+          // ignore duplicate/wet connects during hot rebuilds
+        }
         current = instance;
         this.effectInstances.set(effect.id, instance as Tone.ToneAudioNode & { dispose: () => void });
       }
     }
 
-    current.connect(this.masterGain);
+    try {
+      current.connect(this.masterGain);
+    } catch {
+      // already connected
+    }
   }
 
   private createEffect(effect: Effect): (Tone.ToneAudioNode & { dispose: () => void }) | null {
@@ -289,37 +288,28 @@ export class AudioEngine {
   private disposeTrack(trackId: string): void {
     const synth = this.trackSynths.get(trackId);
     if (synth) {
-      synth.dispose();
+      try { synth.dispose(); } catch {}
       this.trackSynths.delete(trackId);
     }
     const players = this.trackPlayers.get(trackId);
     if (players) {
-      players.forEach((p) => p.dispose());
+      players.forEach((p) => { try { p.dispose(); } catch {} });
       this.trackPlayers.delete(trackId);
     }
     const channel = this.trackChannels.get(trackId);
     if (channel) {
-      channel.dispose();
+      try { channel.dispose(); } catch {}
       this.trackChannels.delete(trackId);
     }
   }
 
   private disposeAllTracks(): void {
-    this.trackSynths.forEach((synth) => synth.dispose());
-    this.trackPlayers.forEach((players) => players.forEach((p) => p.dispose()));
-    this.trackChannels.forEach((channel) => channel.dispose());
+    this.trackSynths.forEach((synth) => { try { synth.dispose(); } catch {} });
+    this.trackPlayers.forEach((players) => { players.forEach((p) => { try { p.dispose(); } catch {} }); });
+    this.trackChannels.forEach((channel) => { try { channel.dispose(); } catch {} });
     this.trackSynths.clear();
     this.trackPlayers.clear();
     this.trackChannels.clear();
-  }
-
-  private clearSchedule(): void {
-    this.scheduledEvents.forEach((ev) => {
-      if (ev.eventId !== undefined) {
-        Tone.getTransport().clear(ev.eventId);
-      }
-    });
-    this.scheduledEvents = [];
   }
 
   private scheduleProject(project: Project): void {
@@ -332,15 +322,13 @@ export class AudioEngine {
     Tone.getTransport().loopEnd = `${loopBeats}m`;
     Tone.getTransport().loop = true;
 
-    const playheadId = Tone.getTransport().scheduleRepeat((_time: number) => {
+    Tone.getTransport().scheduleRepeat((_time: number) => {
       const seconds = Tone.getTransport().seconds;
       const beat = seconds * beatsPerSecond;
       if (this.playheadCallback) {
         this.playheadCallback(beat % totalBeats);
       }
     }, "16n");
-
-    this.scheduledEvents.push({ id: "playhead", callback: () => {}, eventId: playheadId });
 
     for (const track of project.tracks) {
       if (track.muted) continue;
@@ -392,7 +380,7 @@ export class AudioEngine {
         if (!step.active) return;
         const startTime = (loopOffset + (stepIndex / steps.length) * loopBeats) * 60 / bpm;
 
-        const eventId = Tone.getTransport().scheduleRepeat(
+        Tone.getTransport().scheduleRepeat(
           (time) => {
             if (!track.muted) {
               if (synth instanceof Tone.NoiseSynth || synth instanceof Tone.MetalSynth) {
@@ -406,8 +394,6 @@ export class AudioEngine {
           startTime,
           startTime + loopEndTime
         );
-
-        this.scheduledEvents.push({ id: `drum-${track.id}-${stepIndex}-${loop}`, callback: () => {}, eventId });
       });
     }
   }
@@ -424,7 +410,7 @@ export class AudioEngine {
         const startTime = loopOffset + clip.startBeat;
         const duration = clip.durationBeats;
 
-        const eventId = Tone.getTransport().schedule(
+        Tone.getTransport().schedule(
           (time) => {
             if (!track.muted) {
               synth.triggerAttackRelease(clip.sourceId, `${duration}i`, time, clip.gain);
@@ -432,8 +418,6 @@ export class AudioEngine {
           },
           `${Math.floor(startTime / 4)}:${(startTime % 4) * 4}`
         );
-
-        this.scheduledEvents.push({ id: `midi-${clip.id}-${loop}`, callback: () => {}, eventId });
       }
     });
   }
@@ -545,21 +529,58 @@ export class AudioEngine {
     masterGain.gain.value = project.master.volume;
     masterGain.connect(offlineContext.destination);
 
-    for (const track of project.tracks) {
-      if (track.muted) continue;
-      const trackGain = offlineContext.createGain();
-      trackGain.gain.value = track.volume;
-      trackGain.connect(masterGain);
+    const tracksToRender = project.tracks.filter((track) => !track.muted);
 
-      for (const clip of track.clips) {
-        const clipGain = offlineContext.createGain();
-        clipGain.gain.value = clip.gain;
-        clipGain.connect(trackGain);
-      }
+    if (tracksToRender.length === 0) {
+      const buffer = await offlineContext.startRendering();
+      return this.audioBufferToWav(buffer);
     }
 
-    const buffer = await offlineContext.startRendering();
-    return this.audioBufferToWav(buffer);
+    const trackBuffers = await Promise.all(
+      tracksToRender.map(async (track) => {
+        const trackDuration = durationSeconds;
+        const trackContext = new OfflineAudioContext(2, sampleRate * trackDuration, sampleRate);
+        const trackGain = trackContext.createGain();
+        trackGain.gain.value = track.volume;
+        trackGain.connect(trackContext.destination);
+
+        for (const clip of track.clips) {
+          const clipGain = trackContext.createGain();
+          clipGain.gain.value = clip.gain;
+          clipGain.connect(trackGain);
+
+          if (clip.sourceType === "audio") {
+            const asset = await db.audioAssets.get(clip.sourceId);
+            if (asset?.blob instanceof Blob) {
+              const arrayBuffer = await asset.blob.arrayBuffer();
+              const audioBuffer = await trackContext.decodeAudioData(arrayBuffer);
+              const source = trackContext.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(clipGain);
+              const startTime = (clip.startBeat * 60) / project.bpm;
+              source.start(startTime);
+            }
+          }
+        }
+
+        return trackContext.startRendering();
+      })
+    );
+
+    const mixedContext = new OfflineAudioContext(2, sampleRate * durationSeconds, sampleRate);
+    const mixedGain = mixedContext.createGain();
+    mixedGain.gain.value = 1;
+    mixedGain.connect(mixedContext.destination);
+
+    for (const buffer of trackBuffers) {
+      const source = mixedContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(mixedGain);
+      source.start();
+    }
+
+    const mixedBuffer = await mixedContext.startRendering();
+    return this.audioBufferToWav(mixedBuffer);
   }
 
   private audioBufferToWav(buffer: AudioBuffer): Blob {
@@ -626,6 +647,32 @@ export class AudioEngine {
     if (channel) {
       channel.pan.value = pan;
     }
+  }
+
+  setTrackMute(trackId: string, muted: boolean): void {
+    const channel = this.trackChannels.get(trackId);
+    if (channel) {
+      channel.mute = muted;
+    }
+  }
+
+  setTrackSolo(trackId: string, solo: boolean): void {
+    const channel = this.trackChannels.get(trackId);
+    if (channel) {
+      channel.solo = solo;
+    }
+  }
+
+  triggerMetronome(beat: number): void {
+    const now = Tone.now();
+    const isDownbeat = beat % 4 === 0;
+    const synth = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 2,
+      envelope: { attack: 0.001, decay: 0.1, sustain: 0.01, release: 0.1 },
+    }).toDestination();
+    synth.triggerAttackRelease(isDownbeat ? "C2" : "G2", "32n", now, 0.6);
+    setTimeout(() => synth.dispose(), 500);
   }
 }
 
